@@ -80,10 +80,10 @@ export function CalendarPage() {
   for (let d = 1; d <= daysInMonth; d++) cells.push(d)
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-8">
+    <div className="mx-auto max-w-5xl px-4 py-6 md:px-6 md:py-8">
       {/* 月間集計バー */}
       <div className="mb-6 rounded-2xl border border-gray-200 bg-white shadow-sm">
-        <div className="grid grid-cols-4 divide-x divide-gray-100">
+        <div className="grid grid-cols-2 divide-x divide-gray-100 sm:grid-cols-4">
           <div className="px-6 py-5">
             <p className="text-[11px] font-medium text-gray-400">出勤日数</p>
             <p className="mt-1 flex items-baseline gap-1">
@@ -117,9 +117,9 @@ export function CalendarPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-6">
-        {/* カレンダー (2カラム) */}
-        <div className="col-span-2 rounded-2xl border border-gray-200 bg-white shadow-sm">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        {/* カレンダー */}
+        <div className="lg:col-span-2 rounded-2xl border border-gray-200 bg-white shadow-sm">
           <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
             <div className="flex items-center gap-3">
               <button onClick={goToPrevMonth} className="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600">
@@ -154,7 +154,7 @@ export function CalendarPage() {
             {/* 日付グリッド */}
             <div className="grid grid-cols-7 gap-1">
               {cells.map((day, i) => {
-                if (day === null) return <div key={`empty-${i}`} className="h-[72px]" />
+                if (day === null) return <div key={`empty-${i}`} className="h-[60px] sm:h-[72px]" />
 
                 const record = findRecord(day)
                 const today = isToday(year, month, day)
@@ -166,7 +166,7 @@ export function CalendarPage() {
                   <button
                     key={day}
                     onClick={() => setSelectedDay(day === selectedDay ? null : day)}
-                    className={`relative flex h-[72px] flex-col items-center rounded-lg px-1 pt-1.5 text-sm transition-all ${
+                    className={`relative flex h-[60px] flex-col items-center rounded-lg px-0.5 pt-1 text-sm transition-all sm:h-[72px] sm:px-1 sm:pt-1.5 ${
                       isSelected
                         ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
                         : today

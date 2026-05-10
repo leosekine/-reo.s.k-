@@ -19,17 +19,17 @@ export function TodaySummary({ clockInTime, clockOutTime }: TodaySummaryProps) {
 
   return (
     <div className="grid grid-cols-3 divide-x divide-gray-100 border-t border-gray-100">
-      <div className="px-6 py-5 text-center">
+      <div className="px-2 py-4 text-center sm:px-6 sm:py-5">
         <p className="mb-1 text-[11px] font-medium tracking-wider text-gray-400">出勤時刻</p>
         <p className="text-xl font-bold text-gray-900">{formatRecordTime(clockInTime)}</p>
       </div>
-      <div className="px-6 py-5 text-center">
+      <div className="px-2 py-4 text-center sm:px-6 sm:py-5">
         <p className="mb-1 text-[11px] font-medium tracking-wider text-gray-400">退勤時刻</p>
-        <p className="text-xl font-bold text-gray-900">
+        <p className="text-lg font-bold text-gray-900 sm:text-xl">
           {clockOutTime ? formatRecordTime(clockOutTime) : '--:--'}
         </p>
       </div>
-      <div className="px-6 py-5 text-center">
+      <div className="px-2 py-4 text-center sm:px-6 sm:py-5">
         <p className="mb-1 text-[11px] font-medium tracking-wider text-gray-400">実働時間</p>
         <p className="text-xl font-bold text-blue-600">{calcWorkTime(clockInTime, clockOutTime)}</p>
       </div>

@@ -131,8 +131,8 @@ export function DailyReportPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-8">
-      <div className="grid grid-cols-3 gap-6">
+    <div className="mx-auto max-w-5xl px-4 py-6 md:px-6 md:py-8">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* 左: 作成/編集フォーム */}
         <div>
           <div className="rounded-2xl border border-gray-200 bg-white shadow-sm">
@@ -217,7 +217,7 @@ export function DailyReportPage() {
         </div>
 
         {/* 右: 一覧（2カラム） */}
-        <div className="col-span-2">
+        <div className="lg:col-span-2">
           <div className="mb-4 flex items-center justify-between">
             <h3 className="text-sm font-semibold text-gray-900">日報一覧</h3>
             <span className="text-[11px] text-gray-400">日付の新しい順</span>

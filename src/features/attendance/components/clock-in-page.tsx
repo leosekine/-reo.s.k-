@@ -51,17 +51,16 @@ export function ClockInPage() {
   const monthLateCount = monthEntries.filter(e => e.type === 'late').length
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-8">
-      <div className="grid grid-cols-3 gap-6">
-        {/* 左: メイン打刻エリア (2カラム) */}
-        <div className="col-span-2 space-y-6">
-          {/* 打刻カード */}
+    <div className="mx-auto max-w-5xl px-4 py-6 md:px-6 md:py-8">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        {/* メイン打刻エリア */}
+        <div className="space-y-6 lg:col-span-2">
           <div className="rounded-2xl border border-gray-200 bg-white shadow-sm">
-            <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+            <div className="flex flex-col gap-3 border-b border-gray-100 px-4 py-4 sm:flex-row sm:items-center sm:justify-between md:px-6">
               <CurrentClock />
               <StatusBadge status={todayStatus} />
             </div>
-            <div className="flex items-center justify-center px-8 py-10">
+            <div className="flex items-center justify-center px-4 py-8 md:px-8 md:py-10">
               <PunchButtons
                 status={todayStatus}
                 onClockIn={clockIn}
@@ -71,13 +70,11 @@ export function ClockInPage() {
             </div>
             <TodaySummary clockInTime={todayClockIn} clockOutTime={todayClockOut} />
           </div>
-
-          {/* 直近の勤務履歴 */}
           <WorkHistory records={history} />
         </div>
 
-        {/* 右: 今月サマリー */}
-        <div className="space-y-6">
+        {/* 今月サマリー */}
+        <div>
           <div className="rounded-2xl border border-gray-200 bg-white shadow-sm">
             <div className="border-b border-gray-100 px-5 py-4">
               <h3 className="text-sm font-semibold text-gray-900">今月のサマリー</h3>

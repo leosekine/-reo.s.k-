@@ -57,16 +57,16 @@ export function DashboardPage() {
   const workingCount = MEMBERS.filter(m => m.status === 'working' || m.status === 'on_break').length
 
   return (
-    <div className="mx-auto max-w-6xl px-6 py-8">
+    <div className="mx-auto max-w-6xl px-4 py-6 md:px-6 md:py-8">
       {/* 3大指標 */}
-      <div className="mb-8 grid grid-cols-3 gap-5">
+      <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 sm:gap-5">
         {/* 出勤日数 */}
         <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
           <div className="flex items-start justify-between">
             <div>
               <p className="text-[12px] font-medium text-gray-400">今月の出勤日数</p>
               <p className="mt-3 flex items-baseline gap-1">
-                <span className="text-5xl font-bold text-gray-900">{attendanceDays}</span>
+                <span className="text-4xl font-bold text-gray-900 sm:text-5xl">{attendanceDays}</span>
                 <span className="text-lg text-gray-400">/ 20日</span>
               </p>
               <p className="mt-2 text-[12px] text-gray-400">
@@ -91,7 +91,7 @@ export function DashboardPage() {
             <div>
               <p className="text-[12px] font-medium text-gray-400">今月の遅刻回数</p>
               <p className="mt-3 flex items-baseline gap-1">
-                <span className={`text-5xl font-bold ${lateCount > 0 ? 'text-red-500' : 'text-gray-900'}`}>{lateCount}</span>
+                <span className={`text-4xl font-bold sm:text-5xl ${lateCount > 0 ? 'text-red-500' : 'text-gray-900'}`}>{lateCount}</span>
                 <span className="text-lg text-gray-400">回</span>
               </p>
               <p className="mt-2 text-[12px] text-gray-400">
@@ -124,7 +124,7 @@ export function DashboardPage() {
             <div>
               <p className="text-[12px] font-medium text-gray-400">今月の残業時間</p>
               <p className="mt-3 flex items-baseline gap-1">
-                <span className={`text-5xl font-bold ${overtimeDisplay > 20 ? 'text-orange-500' : 'text-gray-900'}`}>{overtimeDisplay}</span>
+                <span className={`text-4xl font-bold sm:text-5xl ${overtimeDisplay > 20 ? 'text-orange-500' : 'text-gray-900'}`}>{overtimeDisplay}</span>
                 <span className="text-lg text-gray-400">時間</span>
               </p>
               <p className="mt-2 text-[12px] text-gray-400">
@@ -145,9 +145,9 @@ export function DashboardPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-6">
-        {/* メンバー状況 (2カラム) */}
-        <div className="col-span-2 rounded-2xl border border-gray-200 bg-white shadow-sm">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        {/* メンバー状況 */}
+        <div className="lg:col-span-2 rounded-2xl border border-gray-200 bg-white shadow-sm">
           <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
             <h3 className="text-sm font-semibold text-gray-900">メンバー勤務状況</h3>
             <span className="text-[11px] text-gray-400">

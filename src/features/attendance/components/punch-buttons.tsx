@@ -13,7 +13,7 @@ export function PunchButtons({ status, onClockIn, onClockOut, onReset }: PunchBu
       {status === 'not_started' && (
         <button
           onClick={onClockIn}
-          className="rounded-2xl bg-emerald-500 px-16 py-4 text-lg font-bold text-white shadow-lg shadow-emerald-500/25 transition-all hover:bg-emerald-600 hover:shadow-emerald-500/40 active:scale-[0.98]"
+          className="w-full rounded-2xl bg-emerald-500 px-10 py-4 text-lg font-bold text-white shadow-lg shadow-emerald-500/25 transition-all hover:bg-emerald-600 hover:shadow-emerald-500/40 active:scale-[0.98] sm:w-auto sm:px-16"
         >
           出勤する
         </button>
@@ -22,7 +22,7 @@ export function PunchButtons({ status, onClockIn, onClockOut, onReset }: PunchBu
       {status === 'working' && (
         <button
           onClick={onClockOut}
-          className="rounded-2xl bg-red-500 px-16 py-4 text-lg font-bold text-white shadow-lg shadow-red-500/25 transition-all hover:bg-red-600 hover:shadow-red-500/40 active:scale-[0.98]"
+          className="w-full rounded-2xl bg-red-500 px-10 py-4 text-lg font-bold text-white shadow-lg shadow-red-500/25 transition-all hover:bg-red-600 hover:shadow-red-500/40 active:scale-[0.98] sm:w-auto sm:px-16"
         >
           退勤する
         </button>
