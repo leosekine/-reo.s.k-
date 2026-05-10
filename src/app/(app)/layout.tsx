@@ -1,14 +1,12 @@
 'use client'
 
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { AttendanceStoreProvider } from '@/shared/stores/attendance-store'
+import { useAuth } from '@/lib/auth-context'
 
 type Page = 'punch' | 'shifts' | 'calendar' | 'report' | 'dashboard'
-type Role = 'admin' | 'member'
-
-const MOCK_USER = { name: '山田 太郎', role: 'admin' as Role, department: '開発部' }
 
 const MENU_ITEMS: readonly {
   readonly id: Page
@@ -41,8 +39,31 @@ function MenuIcon({ id }: { readonly id: Page }) {
 
 export default function AppLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const pathname = usePathname()
+  const router = useRouter()
+  const { user, loading, signOut } = useAuth()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const currentMenuItem = MENU_ITEMS.find(m => pathname.startsWith(m.path))
+
+  const userName = user?.user_metadata?.name || user?.email?.split('@')[0] || ''
+
+  // 認証ガード
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-50">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-200 border-t-blue-600" />
+      </div>
+    )
+  }
+  useEffect(() => {
+    if (!loading && !user) router.replace('/login')
+  }, [loading, user, router])
+
+  if (!user) return null
+
+  const handleSignOut = async () => {
+    await signOut()
+    router.replace('/login')
+  }
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -86,13 +107,15 @@ export default function AppLayout({ children }: Readonly<{ children: React.React
         <div className="border-t border-white/10 px-3 py-3">
           <div className="flex items-center gap-3">
             <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-sky-400 to-blue-500 text-sm font-bold text-white">
-              {MOCK_USER.name.charAt(0)}
+              {userName.charAt(0) || '?'}
               <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-[#1e293b] bg-emerald-400" />
             </div>
             {!sidebarCollapsed && (
               <div className="min-w-0 flex-1">
-                <p className="truncate text-[13px] font-medium text-slate-200">{MOCK_USER.name}</p>
-                <p className="text-[11px] text-slate-500">{MOCK_USER.role === 'admin' ? '管理者' : 'メンバー'} / {MOCK_USER.department}</p>
+                <p className="truncate text-[13px] font-medium text-slate-200">{userName}</p>
+                <button onClick={handleSignOut} className="text-[11px] text-slate-500 hover:text-slate-300 transition-colors">
+                  ログアウト
+                </button>
               </div>
             )}
           </div>
