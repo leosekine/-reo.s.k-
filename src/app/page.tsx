@@ -10,15 +10,72 @@ import { DashboardPage } from '@/features/dashboard/components/dashboard-page'
 type Page = 'attendance' | 'shift' | 'calendar' | 'report' | 'dashboard'
 type Role = 'admin' | 'member'
 
-const MOCK_USER = { name: '山田 太郎', role: 'admin' as Role }
+const MOCK_USER = { name: '山田 太郎', role: 'admin' as Role, department: '開発部' }
 
-const MENU_ITEMS: readonly { readonly id: Page; readonly label: string; readonly icon: string }[] = [
-  { id: 'attendance', label: '打刻', icon: '🕐' },
-  { id: 'shift', label: 'シフト申請', icon: '📅' },
-  { id: 'calendar', label: 'カレンダー', icon: '📆' },
-  { id: 'report', label: '日報', icon: '📝' },
-  { id: 'dashboard', label: 'ダッシュボード', icon: '📊' },
+const MENU_ITEMS: readonly {
+  readonly id: Page
+  readonly label: string
+  readonly description: string
+}[] = [
+  { id: 'attendance', label: '打刻', description: '出退勤の記録' },
+  { id: 'shift', label: 'シフト申請', description: 'シフト希望の提出' },
+  { id: 'calendar', label: 'カレンダー', description: '月間勤務一覧' },
+  { id: 'report', label: '日報', description: '業務内容の記録' },
+  { id: 'dashboard', label: 'ダッシュボード', description: 'チーム全体の管理' },
 ]
+
+function MenuIcon({ id, active }: { readonly id: Page; readonly active: boolean }) {
+  const color = active ? 'currentColor' : 'currentColor'
+  const props = { width: 20, height: 20, fill: 'none', stroke: color, strokeWidth: 1.8, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const }
+
+  switch (id) {
+    case 'attendance':
+      return (
+        <svg {...props} viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="10" />
+          <polyline points="12 6 12 12 16 14" />
+        </svg>
+      )
+    case 'shift':
+      return (
+        <svg {...props} viewBox="0 0 24 24">
+          <rect x="3" y="4" width="18" height="18" rx="2" />
+          <line x1="16" y1="2" x2="16" y2="6" />
+          <line x1="8" y1="2" x2="8" y2="6" />
+          <line x1="3" y1="10" x2="21" y2="10" />
+          <path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01" />
+        </svg>
+      )
+    case 'calendar':
+      return (
+        <svg {...props} viewBox="0 0 24 24">
+          <rect x="3" y="4" width="18" height="18" rx="2" />
+          <line x1="16" y1="2" x2="16" y2="6" />
+          <line x1="8" y1="2" x2="8" y2="6" />
+          <line x1="3" y1="10" x2="21" y2="10" />
+        </svg>
+      )
+    case 'report':
+      return (
+        <svg {...props} viewBox="0 0 24 24">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+          <line x1="16" y1="13" x2="8" y2="13" />
+          <line x1="16" y1="17" x2="8" y2="17" />
+          <line x1="10" y1="9" x2="8" y2="9" />
+        </svg>
+      )
+    case 'dashboard':
+      return (
+        <svg {...props} viewBox="0 0 24 24">
+          <rect x="3" y="3" width="7" height="9" rx="1" />
+          <rect x="14" y="3" width="7" height="5" rx="1" />
+          <rect x="14" y="12" width="7" height="9" rx="1" />
+          <rect x="3" y="16" width="7" height="5" rx="1" />
+        </svg>
+      )
+  }
+}
 
 function PageContent({ page }: { readonly page: Page }) {
   switch (page) {
@@ -37,47 +94,91 @@ function PageContent({ page }: { readonly page: Page }) {
 
 export default function Home() {
   const [currentPage, setCurrentPage] = useState<Page>('attendance')
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+
+  const currentMenuItem = MENU_ITEMS.find(m => m.id === currentPage)
 
   return (
-    <div className="flex h-screen">
+    <div className="flex h-screen bg-gray-50">
       {/* サイドバー */}
-      <aside className="flex w-64 shrink-0 flex-col bg-gray-900">
+      <aside
+        className={`flex shrink-0 flex-col bg-slate-900 transition-all duration-300 ${
+          sidebarCollapsed ? 'w-[68px]' : 'w-60'
+        }`}
+      >
         {/* ロゴ */}
-        <div className="border-b border-gray-700 px-6 py-5">
-          <h1 className="text-xl font-bold text-white tracking-wide">勤怠管理</h1>
-          <p className="mt-1 text-xs text-gray-400">Attendance Manager</p>
+        <div className="flex h-16 items-center gap-3 border-b border-slate-700/50 px-4">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-600">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+          </div>
+          {!sidebarCollapsed && (
+            <div className="min-w-0">
+              <h1 className="truncate text-sm font-bold text-white">勤怠管理</h1>
+              <p className="text-[10px] text-slate-400">Attendance Manager</p>
+            </div>
+          )}
         </div>
 
         {/* ナビゲーション */}
-        <nav className="flex-1 space-y-1 px-3 py-4">
-          {MENU_ITEMS.map(item => (
-            <button
-              key={item.id}
-              onClick={() => setCurrentPage(item.id)}
-              className={`flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-sm font-medium transition-colors ${
-                currentPage === item.id
-                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
-                  : 'text-gray-300 hover:bg-gray-800 hover:text-white'
-              }`}
-            >
-              <span className="text-lg">{item.icon}</span>
-              {item.label}
-            </button>
-          ))}
+        <nav className="flex-1 space-y-0.5 px-2 py-3">
+          {MENU_ITEMS.map(item => {
+            const isActive = currentPage === item.id
+            return (
+              <button
+                key={item.id}
+                onClick={() => setCurrentPage(item.id)}
+                title={sidebarCollapsed ? item.label : undefined}
+                className={`group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[13px] font-medium transition-all ${
+                  isActive
+                    ? 'bg-blue-600 text-white shadow-md shadow-blue-600/25'
+                    : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                }`}
+              >
+                <span className={`shrink-0 ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-200'}`}>
+                  <MenuIcon id={item.id} active={isActive} />
+                </span>
+                {!sidebarCollapsed && (
+                  <span className="truncate">{item.label}</span>
+                )}
+              </button>
+            )
+          })}
         </nav>
 
+        {/* サイドバー折りたたみ */}
+        <div className="border-t border-slate-700/50 px-2 py-2">
+          <button
+            onClick={() => setSidebarCollapsed(prev => !prev)}
+            className="flex w-full items-center justify-center rounded-lg py-2 text-slate-400 transition-colors hover:bg-slate-800 hover:text-white"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              {sidebarCollapsed ? (
+                <polyline points="9 18 15 12 9 6" />
+              ) : (
+                <polyline points="15 18 9 12 15 6" />
+              )}
+            </svg>
+          </button>
+        </div>
+
         {/* ユーザー情報 */}
-        <div className="border-t border-gray-700 px-4 py-4">
+        <div className="border-t border-slate-700/50 px-3 py-3">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-500 text-sm font-bold text-white">
+            <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-600 text-sm font-bold text-white shadow-lg shadow-blue-500/20">
               {MOCK_USER.name.charAt(0)}
+              <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-slate-900 bg-emerald-400" />
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="truncate text-sm font-medium text-white">{MOCK_USER.name}</p>
-              <p className="text-xs text-gray-400">
-                {MOCK_USER.role === 'admin' ? '管理者' : 'メンバー'}
-              </p>
-            </div>
+            {!sidebarCollapsed && (
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[13px] font-medium text-white">{MOCK_USER.name}</p>
+                <p className="text-[11px] text-slate-400">
+                  {MOCK_USER.role === 'admin' ? '管理者' : 'メンバー'} / {MOCK_USER.department}
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </aside>
@@ -85,17 +186,31 @@ export default function Home() {
       {/* メインコンテンツ */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* ヘッダー */}
-        <header className="flex h-14 items-center justify-between border-b border-gray-200 bg-white px-6">
-          <h2 className="text-lg font-semibold text-gray-900">
-            {MENU_ITEMS.find(m => m.id === currentPage)?.label}
-          </h2>
-          <div className="flex items-center gap-3">
-            <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">
-              オンライン
-            </span>
+        <header className="flex h-14 shrink-0 items-center justify-between border-b border-gray-200 bg-white px-6 shadow-sm">
+          <div>
+            <h2 className="text-[15px] font-semibold text-gray-900">
+              {currentMenuItem?.label}
+            </h2>
+            <p className="text-[11px] text-gray-400">{currentMenuItem?.description}</p>
+          </div>
+          <div className="flex items-center gap-4">
+            {/* 通知ベル */}
+            <button className="relative rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+              </svg>
+              <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500" />
+            </button>
+            {/* オンライン状態 */}
+            <div className="flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              <span className="text-[11px] font-medium text-emerald-700">オンライン</span>
+            </div>
           </div>
         </header>
 
+        {/* ページコンテンツ */}
         <main className="flex-1 overflow-y-auto bg-gray-50">
           <PageContent page={currentPage} />
         </main>
