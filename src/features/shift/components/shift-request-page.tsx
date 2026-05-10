@@ -28,8 +28,16 @@ function formatDate(dateStr: string): string {
   })
 }
 
+const INITIAL_REQUESTS: readonly ShiftRequest[] = [
+  { id: '1', date: '2026-05-12', startTime: '09:00', endTime: '18:00', status: 'pending' },
+  { id: '2', date: '2026-05-13', startTime: '10:00', endTime: '19:00', status: 'pending' },
+  { id: '3', date: '2026-05-14', startTime: '08:00', endTime: '17:00', status: 'approved' },
+  { id: '4', date: '2026-05-08', startTime: '09:00', endTime: '18:00', status: 'approved' },
+  { id: '5', date: '2026-05-07', startTime: '13:00', endTime: '22:00', status: 'rejected' },
+]
+
 export function ShiftRequestPage() {
-  const [requests, setRequests] = useState<readonly ShiftRequest[]>([])
+  const [requests, setRequests] = useState<readonly ShiftRequest[]>(INITIAL_REQUESTS)
   const [date, setDate] = useState('')
   const [startTime, setStartTime] = useState('')
   const [endTime, setEndTime] = useState('')
