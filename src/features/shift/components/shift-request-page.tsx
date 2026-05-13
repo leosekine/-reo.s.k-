@@ -1,6 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/lib/auth-context'
 
 type ShiftStatus = 'pending' | 'approved' | 'rejected'
 type ShiftType = 'normal' | 'early' | 'late' | 'night' | 'holiday'
@@ -8,13 +10,14 @@ type ShiftType = 'normal' | 'early' | 'late' | 'night' | 'holiday'
 interface ShiftRequest {
   readonly id: string
   readonly date: string
-  readonly shiftType: ShiftType
-  readonly startTime: string
-  readonly endTime: string
+  readonly shift_type: ShiftType
+  readonly start_time: string
+  readonly end_time: string
   readonly reason: string
   readonly status: ShiftStatus
   readonly approver: string | null
   readonly comment: string | null
+  readonly created_at: string
 }
 
 const STATUS_CONFIG = {
@@ -37,16 +40,15 @@ function formatDate(dateStr: string): string {
   return `${d.getMonth() + 1}/${d.getDate()}(${weekdays[d.getDay()]})`
 }
 
-const INITIAL_REQUESTS: readonly ShiftRequest[] = [
-  { id: '1', date: '2026-05-12', shiftType: 'normal', startTime: '09:00', endTime: '18:00', reason: '通常勤務', status: 'pending', approver: null, comment: null },
-  { id: '2', date: '2026-05-13', shiftType: 'late', startTime: '13:00', endTime: '22:00', reason: '午前中に通院のため', status: 'pending', approver: null, comment: null },
-  { id: '3', date: '2026-05-14', shiftType: 'early', startTime: '07:00', endTime: '16:00', reason: '子供の迎えのため早番希望', status: 'approved', approver: '佐藤 部長', comment: null },
-  { id: '4', date: '2026-05-08', shiftType: 'normal', startTime: '09:00', endTime: '18:00', reason: '通常勤務', status: 'approved', approver: '佐藤 部長', comment: null },
-  { id: '5', date: '2026-05-07', shiftType: 'night', startTime: '22:00', endTime: '07:00', reason: 'サーバーメンテナンス対応', status: 'rejected', approver: '佐藤 部長', comment: '人員超過のため別日程を検討してください' },
-]
+function trimTime(t: string): string {
+  // "09:00:00" → "09:00"
+  return t.length >= 5 ? t.slice(0, 5) : t
+}
 
 export function ShiftRequestPage() {
-  const [requests, setRequests] = useState<readonly ShiftRequest[]>(INITIAL_REQUESTS)
+  const { user } = useAuth()
+  const [requests, setRequests] = useState<readonly ShiftRequest[]>([])
+  const [loading, setLoading] = useState(true)
   const [date, setDate] = useState('')
   const [shiftType, setShiftType] = useState<ShiftType>('normal')
   const [startTime, setStartTime] = useState('09:00')
@@ -54,39 +56,58 @@ export function ShiftRequestPage() {
   const [reason, setReason] = useState('')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [submitting, setSubmitting] = useState(false)
   const [filterStatus, setFilterStatus] = useState<ShiftStatus | 'all'>('all')
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const fetchShifts = useCallback(async () => {
+    if (!user) return
+    setLoading(true)
+    const { data, error: fetchError } = await supabase
+      .from('shifts')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('date', { ascending: false })
+    if (fetchError) {
+      setError('シフト一覧の取得に失敗しました')
+    } else if (data) {
+      setRequests(data as ShiftRequest[])
+    }
+    setLoading(false)
+  }, [user])
+
+  useEffect(() => {
+    fetchShifts()
+  }, [fetchShifts])
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     setSuccess('')
 
-    if (!date) {
-      setError('日付を選択してください')
-      return
-    }
-    if (!startTime || !endTime) {
-      setError('開始・終了時間を入力してください')
-      return
-    }
+    if (!user) { setError('ログインが必要です'); return }
+    if (!date) { setError('日付を選択してください'); return }
+    if (!startTime || !endTime) { setError('開始・終了時間を入力してください'); return }
     if (shiftType !== 'night' && endTime <= startTime) {
-      setError('終了時間は開始時間より後にしてください')
-      return
+      setError('終了時間は開始時間より後にしてください'); return
     }
 
-    const newRequest: ShiftRequest = {
-      id: crypto.randomUUID(),
+    setSubmitting(true)
+    const { error: insertError } = await supabase.from('shifts').insert({
+      user_id: user.id,
       date,
-      shiftType,
-      startTime,
-      endTime,
+      shift_type: shiftType,
+      start_time: startTime,
+      end_time: endTime,
       reason: reason || '通常勤務',
       status: 'pending',
-      approver: null,
-      comment: null,
+    })
+
+    if (insertError) {
+      setError(insertError.message)
+      setSubmitting(false)
+      return
     }
 
-    setRequests(prev => [newRequest, ...prev])
     setDate('')
     setShiftType('normal')
     setStartTime('09:00')
@@ -94,16 +115,23 @@ export function ShiftRequestPage() {
     setReason('')
     setSuccess('申請を提出しました')
     setTimeout(() => setSuccess(''), 3000)
+    setSubmitting(false)
+    await fetchShifts()
   }
 
-  const handleStatusChange = (id: string, status: ShiftStatus) => {
-    setRequests(prev =>
-      prev.map(r => (r.id === id ? { ...r, status, approver: '佐藤 部長' } : r))
-    )
-  }
-
-  const handleDelete = (id: string) => {
-    setRequests(prev => prev.filter(r => r.id !== id))
+  const handleDelete = async (id: string) => {
+    const target = requests.find(r => r.id === id)
+    if (!target) return
+    if (target.status !== 'pending') {
+      setError('承認/却下済の申請は削除できません')
+      return
+    }
+    const { error: deleteError } = await supabase.from('shifts').delete().eq('id', id)
+    if (deleteError) {
+      setError(deleteError.message)
+      return
+    }
+    await fetchShifts()
   }
 
   const filteredRequests = filterStatus === 'all'
@@ -117,7 +145,7 @@ export function ShiftRequestPage() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 md:px-6 md:py-8">
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* 左: 申請フォーム（常時表示） */}
+        {/* 左: 申請フォーム */}
         <div className="space-y-4">
           <div className="rounded-2xl border border-gray-200 bg-white shadow-sm">
             <div className="border-b border-gray-100 px-5 py-4">
@@ -128,21 +156,14 @@ export function ShiftRequestPage() {
             <form onSubmit={handleSubmit} className="space-y-4 p-5">
               <div>
                 <label className="mb-1.5 block text-[12px] font-medium text-gray-600">日付</label>
-                <input
-                  type="date"
-                  value={date}
-                  onChange={e => setDate(e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm transition-colors focus:border-blue-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100"
-                />
+                <input type="date" value={date} onChange={e => setDate(e.target.value)}
+                  className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm focus:border-blue-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100" />
               </div>
 
               <div>
                 <label className="mb-1.5 block text-[12px] font-medium text-gray-600">シフト種別</label>
-                <select
-                  value={shiftType}
-                  onChange={e => setShiftType(e.target.value as ShiftType)}
-                  className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm transition-colors focus:border-blue-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100"
-                >
+                <select value={shiftType} onChange={e => setShiftType(e.target.value as ShiftType)}
+                  className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm focus:border-blue-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100">
                   {Object.entries(SHIFT_TYPE_CONFIG).map(([key, cfg]) => (
                     <option key={key} value={key}>{cfg.label}</option>
                   ))}
@@ -152,41 +173,28 @@ export function ShiftRequestPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="mb-1.5 block text-[12px] font-medium text-gray-600">開始</label>
-                  <input
-                    type="time"
-                    value={startTime}
-                    onChange={e => setStartTime(e.target.value)}
-                    className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm transition-colors focus:border-blue-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100"
-                  />
+                  <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)}
+                    className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm focus:border-blue-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100" />
                 </div>
                 <div>
                   <label className="mb-1.5 block text-[12px] font-medium text-gray-600">終了</label>
-                  <input
-                    type="time"
-                    value={endTime}
-                    onChange={e => setEndTime(e.target.value)}
-                    className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm transition-colors focus:border-blue-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100"
-                  />
+                  <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)}
+                    className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm focus:border-blue-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100" />
                 </div>
               </div>
 
               <div>
                 <label className="mb-1.5 block text-[12px] font-medium text-gray-600">備考・理由</label>
-                <textarea
-                  value={reason}
-                  onChange={e => setReason(e.target.value)}
-                  rows={2}
-                  placeholder="例: 通院のため"
-                  className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm transition-colors focus:border-blue-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100"
-                />
+                <textarea value={reason} onChange={e => setReason(e.target.value)} rows={2} placeholder="例: 通院のため"
+                  className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm focus:border-blue-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-100" />
               </div>
 
               {error && (
-                <div className="flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2 text-[12px] text-red-700">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <div className="flex items-start gap-2 rounded-lg bg-red-50 px-3 py-2 text-[12px] text-red-700">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="mt-0.5 shrink-0">
                     <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
                   </svg>
-                  {error}
+                  <span>{error}</span>
                 </div>
               )}
 
@@ -199,16 +207,13 @@ export function ShiftRequestPage() {
                 </div>
               )}
 
-              <button
-                type="submit"
-                className="w-full rounded-xl bg-blue-600 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700"
-              >
-                申請する
+              <button type="submit" disabled={submitting}
+                className="w-full rounded-xl bg-blue-600 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:bg-gray-300">
+                {submitting ? '送信中…' : '申請する'}
               </button>
             </form>
           </div>
 
-          {/* 統計 */}
           <div className="grid grid-cols-3 gap-2">
             <div className="rounded-xl border border-amber-100 bg-amber-50/50 px-3 py-3 text-center">
               <p className="text-[10px] font-medium text-amber-600">申請中</p>
@@ -225,30 +230,28 @@ export function ShiftRequestPage() {
           </div>
         </div>
 
-        {/* 右: 申請履歴一覧（2カラム） */}
+        {/* 右: 申請履歴 */}
         <div className="lg:col-span-2">
-          {/* フィルター */}
           <div className="mb-4 flex items-center justify-between">
             <h3 className="text-sm font-semibold text-gray-900">申請履歴</h3>
             <div className="flex items-center gap-1.5">
               {(['all', 'pending', 'approved', 'rejected'] as const).map(s => (
-                <button
-                  key={s}
-                  onClick={() => setFilterStatus(s)}
+                <button key={s} onClick={() => setFilterStatus(s)}
                   className={`rounded-lg px-2.5 py-1.5 text-[11px] font-medium transition-colors ${
-                    filterStatus === s
-                      ? 'bg-gray-900 text-white'
-                      : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                  }`}
-                >
+                    filterStatus === s ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                  }`}>
                   {s === 'all' ? 'すべて' : STATUS_CONFIG[s].label}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* 一覧 */}
-          {filteredRequests.length === 0 ? (
+          {loading ? (
+            <div className="rounded-2xl border border-dashed border-gray-200 py-16 text-center">
+              <div className="mx-auto h-6 w-6 animate-spin rounded-full border-2 border-gray-200 border-t-blue-500" />
+              <p className="mt-3 text-sm text-gray-400">読込中…</p>
+            </div>
+          ) : filteredRequests.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-gray-200 py-16 text-center">
               <svg className="mx-auto mb-3 text-gray-300" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
@@ -259,12 +262,11 @@ export function ShiftRequestPage() {
             <div className="space-y-2.5">
               {filteredRequests.map(req => {
                 const statusCfg = STATUS_CONFIG[req.status]
-                const typeCfg = SHIFT_TYPE_CONFIG[req.shiftType]
+                const typeCfg = SHIFT_TYPE_CONFIG[req.shift_type]
                 return (
                   <div key={req.id} className="rounded-xl border border-gray-200 bg-white px-5 py-4 shadow-sm transition-shadow hover:shadow-md">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4">
-                        {/* 日付アイコン */}
                         <div className="flex h-11 w-11 flex-col items-center justify-center rounded-lg bg-gray-50">
                           <span className="text-[9px] font-medium text-gray-400">
                             {new Date(req.date + 'T00:00:00').toLocaleDateString('ja-JP', { month: 'short' })}
@@ -281,7 +283,7 @@ export function ShiftRequestPage() {
                             </span>
                           </div>
                           <div className="mt-0.5 flex items-center gap-3">
-                            <span className="font-mono text-[12px] text-gray-500">{req.startTime} - {req.endTime}</span>
+                            <span className="font-mono text-[12px] text-gray-500">{trimTime(req.start_time)} - {trimTime(req.end_time)}</span>
                             {req.reason && <span className="text-[11px] text-gray-400">{req.reason}</span>}
                           </div>
                         </div>
@@ -292,42 +294,22 @@ export function ShiftRequestPage() {
                       </span>
                     </div>
 
-                    {/* 却下コメント */}
                     {req.comment && (
                       <div className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-[11px] text-red-700">
                         <span className="font-semibold">却下理由:</span> {req.comment}
                       </div>
                     )}
 
-                    {/* 操作 */}
                     <div className="mt-3 flex items-center justify-between border-t border-gray-50 pt-2.5">
                       <span className="text-[11px] text-gray-400">
                         {req.approver ? `承認者: ${req.approver}` : ''}
                       </span>
-                      <div className="flex gap-1.5">
-                        {req.status === 'pending' && (
-                          <>
-                            <button
-                              onClick={() => handleStatusChange(req.id, 'approved')}
-                              className="rounded-md bg-emerald-500 px-2.5 py-1 text-[11px] font-semibold text-white transition-colors hover:bg-emerald-600"
-                            >
-                              承認
-                            </button>
-                            <button
-                              onClick={() => handleStatusChange(req.id, 'rejected')}
-                              className="rounded-md bg-red-500 px-2.5 py-1 text-[11px] font-semibold text-white transition-colors hover:bg-red-600"
-                            >
-                              却下
-                            </button>
-                          </>
-                        )}
-                        <button
-                          onClick={() => handleDelete(req.id)}
-                          className="rounded-md bg-gray-100 px-2.5 py-1 text-[11px] font-medium text-gray-500 transition-colors hover:bg-gray-200"
-                        >
-                          削除
+                      {req.status === 'pending' && (
+                        <button onClick={() => handleDelete(req.id)}
+                          className="rounded-md bg-gray-100 px-2.5 py-1 text-[11px] font-medium text-gray-500 transition-colors hover:bg-gray-200">
+                          取下げ
                         </button>
-                      </div>
+                      )}
                     </div>
                   </div>
                 )

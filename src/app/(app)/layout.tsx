@@ -6,19 +6,21 @@ import { useState, useEffect } from 'react'
 import { AttendanceStoreProvider } from '@/shared/stores/attendance-store'
 import { useAuth } from '@/lib/auth-context'
 
-type Page = 'punch' | 'shifts' | 'calendar' | 'report' | 'dashboard'
+type Page = 'punch' | 'shifts' | 'calendar' | 'report' | 'dashboard' | 'admin-shifts'
 
 const MENU_ITEMS: readonly {
   readonly id: Page
   readonly path: string
   readonly label: string
   readonly description: string
+  readonly adminOnly?: boolean
 }[] = [
   { id: 'punch', path: '/punch', label: '打刻', description: '出退勤の記録' },
   { id: 'shifts', path: '/shifts', label: 'シフト', description: 'シフト希望の提出' },
   { id: 'calendar', path: '/calendar', label: 'カレンダー', description: '月間勤務一覧' },
   { id: 'report', path: '/report', label: '日報', description: '業務内容の記録' },
-  { id: 'dashboard', path: '/dashboard', label: '管理', description: 'チーム全体の管理' },
+  { id: 'dashboard', path: '/dashboard', label: '管理', description: 'チーム全体の管理', adminOnly: true },
+  { id: 'admin-shifts', path: '/admin/shifts', label: 'シフト承認', description: '全員のシフト申請を承認', adminOnly: true },
 ]
 
 function MenuIcon({ id }: { readonly id: Page }) {
@@ -34,17 +36,33 @@ function MenuIcon({ id }: { readonly id: Page }) {
       return <svg {...props} viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><line x1="10" y1="9" x2="8" y2="9" /></svg>
     case 'dashboard':
       return <svg {...props} viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1" /><rect x="14" y="3" width="7" height="5" rx="1" /><rect x="14" y="12" width="7" height="9" rx="1" /><rect x="3" y="16" width="7" height="5" rx="1" /></svg>
+    case 'admin-shifts':
+      return <svg {...props} viewBox="0 0 24 24"><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></svg>
   }
 }
 
 export default function AppLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const pathname = usePathname()
   const router = useRouter()
-  const { user, loading, signOut } = useAuth()
+  const { user, role, loading, signOut } = useAuth()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-  const currentMenuItem = MENU_ITEMS.find(m => pathname.startsWith(m.path))
+  const visibleMenuItems = MENU_ITEMS.filter(m => !m.adminOnly || role === 'admin')
+  const currentMenuItem = visibleMenuItems.find(m => pathname.startsWith(m.path))
+    ?? MENU_ITEMS.find(m => pathname.startsWith(m.path))
 
   const userName = user?.user_metadata?.name || user?.email?.split('@')[0] || ''
+  const isAdminRoute = pathname.startsWith('/admin') || pathname.startsWith('/dashboard')
+
+  useEffect(() => {
+    if (!loading && !user) router.replace('/login')
+  }, [loading, user, router])
+
+  // 管理者専用ルートをmemberが開いたら/punchへ
+  useEffect(() => {
+    if (!loading && user && role === 'member' && isAdminRoute) {
+      router.replace('/punch')
+    }
+  }, [loading, user, role, isAdminRoute, router])
 
   // 認証ガード
   if (loading) {
@@ -54,9 +72,6 @@ export default function AppLayout({ children }: Readonly<{ children: React.React
       </div>
     )
   }
-  useEffect(() => {
-    if (!loading && !user) router.replace('/login')
-  }, [loading, user, router])
 
   if (!user) return null
 
@@ -83,7 +98,7 @@ export default function AppLayout({ children }: Readonly<{ children: React.React
           )}
         </div>
         <nav className="flex-1 space-y-0.5 px-2 py-3">
-          {MENU_ITEMS.map(item => {
+          {visibleMenuItems.map(item => {
             const isActive = pathname.startsWith(item.path)
             return (
               <Link key={item.id} href={item.path} title={sidebarCollapsed ? item.label : undefined}
@@ -112,7 +127,12 @@ export default function AppLayout({ children }: Readonly<{ children: React.React
             </div>
             {!sidebarCollapsed && (
               <div className="min-w-0 flex-1">
-                <p className="truncate text-[13px] font-medium text-slate-200">{userName}</p>
+                <div className="flex items-center gap-1.5">
+                  <p className="truncate text-[13px] font-medium text-slate-200">{userName}</p>
+                  {role === 'admin' && (
+                    <span className="rounded bg-gradient-to-r from-purple-500 to-indigo-500 px-1.5 py-0.5 text-[9px] font-bold text-white">ADMIN</span>
+                  )}
+                </div>
                 <button onClick={handleSignOut} className="text-[11px] text-slate-500 hover:text-slate-300 transition-colors">
                   ログアウト
                 </button>
@@ -154,7 +174,7 @@ export default function AppLayout({ children }: Readonly<{ children: React.React
 
       {/* モバイル ボトムナビ (md未満) */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 flex md:hidden items-center justify-around border-t border-gray-200 bg-white px-1 py-1.5 safe-area-pb">
-        {MENU_ITEMS.map(item => {
+        {visibleMenuItems.map(item => {
           const isActive = pathname.startsWith(item.path)
           return (
             <Link key={item.id} href={item.path}
